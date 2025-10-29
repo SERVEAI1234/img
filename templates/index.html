@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Assistant - โหมดเสียง (Frameless Button)</title>
+<script src="https://kit.fontawesome.com/a2e0a2d60f.js" crossorigin="anonymous"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
+html,body{height:100%}
+:root{ --panel-h:320px; --btn-size:clamp(160px, 30vw, 220px); }
+
+body{
+  min-height:100vh;display:flex;justify-content:center;align-items:center;position:relative;
+  background:url('https://img5.pic.in.th/file/secure-sv1/imge.gif') center/cover fixed no-repeat;
+  cursor:default; overflow-y:scroll;
+}
+
+/* แสงพื้นหลัง + หิ่งห้อย */
+.glow{position:fixed;width:600px;height:600px;background:radial-gradient(circle,rgba(236,72,153,.35) 0%,transparent 70%);
+  top:-150px;left:-150px;filter:blur(100px);animation:float 10s ease-in-out infinite alternate;z-index:0;pointer-events:none}
+.glow:nth-child(2){top:auto;bottom:-150px;right:-150px;left:auto;background:radial-gradient(circle,rgba(147,51,234,.35) 0%,transparent 70%);animation-delay:5s}
+@keyframes float{from{transform:translateY(0) scale(1);opacity:.8}to{transform:translateY(40px) scale(1.1);opacity:1}}
+.fireflies{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.firefly{position:absolute;border-radius:50%;width:var(--size,8px);height:var(--size,8px);
+  background:radial-gradient(circle, rgba(255,255,200,.9) 0%, rgba(255,255,200,.6) 40%, rgba(255, 255, 239, 0.912) 70%);
+  filter:blur(.2px);opacity:var(--alpha,.8);will-change:transform,opacity;
+  animation:drift var(--dur,12s) ease-in-out infinite, flicker calc(var(--dur,12s)/3) ease-in-out infinite alternate}
+@keyframes drift{0%{transform:translate3d(0,0,0)}25%{transform:translate3d(var(--dx1,40px),var(--dy1,-30px),0)}
+ 50%{transform:translate3d(var(--dx2,-20px),var(--dy2,45px),0)}75%{transform:translate3d(var(--dx3,60px),var(--dy3,20px),0)}100%{transform:translate3d(0,0,0)}}
+@keyframes flicker{0%{opacity:.45;filter:drop-shadow(0 0 2px rgba(255,255,200,.6))}
+ 50%{opacity:1;filter:drop-shadow(0 0 6px rgba(255,255,180,.9))}100%{opacity:.6;filter:drop-shadow(0 0 3px rgba(255,255,180,.75))}}
+@media(prefers-reduced-motion:reduce){.firefly{animation:none;opacity:.3}}
+
+.container{
+  position:relative;z-index:2;background:rgba(255,255,255,.1);backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.3);border-radius:25px;box-shadow:0 10px 30px rgba(255, 247, 247, 0.3);
+  width:90%;max-width:560px;overflow:hidden;
+}
+.header{background:linear-gradient(135deg,rgba(147,51,234,.9),rgba(236,72,153,.9));color:#fff;padding:22px 24px;text-align:center}
+.header h1{font-size:1.65rem;font-weight:700;margin-bottom:4px}
+.header p{font-size:1rem;opacity:.92}
+
+.content{padding:18px 18px 92px}
+.status{text-align:center;margin-bottom:14px;padding:12px;border-radius:12px;background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.25);color:#f8fafc;min-height:48px}
+#statusIndicator{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;background:#ef4444;vertical-align:middle}
+#statusIndicator.listening{background:#22c55e;animation:pulse 1.5s infinite}
+#statusIndicator.speaking{background:#f59e0b;animation:pulse 1.5s infinite}
+#statusIndicator.processing{background:#60a5fa;animation:pulse 1.5s infinite}
+#statusIndicator.pausing{background:#a3a3a3}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:.6}}
+
+/* ========= โหมดเสียง (เอากรอบที่ครอบปุ่มออก) ========= */
+.voice-shell{display:flex;flex-direction:column;gap:12px;background:transparent;border:none;padding:0;width:100%}
+.button-container{display:flex;justify-content:center;align-items:center;margin:6px auto 2px;}
+#recordButton{
+  width:var(--btn-size);height:var(--btn-size);
+  border-radius:50%;object-fit:contain;display:block;cursor:pointer;user-select:none;-webkit-user-drag:none;
+  border:4px solid rgba(255,255,255,.4);
+  box-shadow:0 10px 35px rgba(139,92,246,.45), 0 0 0 10px rgba(139,92,246,.10);
+  transition:transform .22s,box-shadow .22s,border-color .22s, filter .22s;
+  background:transparent; filter: drop-shadow(0 0 8px rgba(255,255,255,.25));
+}
+#recordButton:hover{transform:scale(1.06);box-shadow:0 12px 42px rgba(217,70,239,.7), 0 0 0 14px rgba(217,70,239,.10)}
+#recordButton.active{animation:pulse 1.5s infinite;border-color:rgba(34,197,94,.95);box-shadow:0 0 45px rgba(34,197,94,.85),0 0 0 12px rgba(34,197,94,.12)}
+.help{text-align:center;font-size:.92rem;color:#e5e7eb;margin-top:2px}
+
+.voice-scroll{max-height:calc(var(--panel-h) + 40px);min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-top:4px}
+
+.transcript-box{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.30);color:#f9fafb}
+.transcript-box h3{margin:0 0 6px 0;font-size:1.0rem;color:#a5b4fc}
+.transcript-box .t-line{line-height:1.6;word-break:break-word}
+.transcript-box .interim{opacity:.7;font-style:italic}
+
+.response-section{padding:12px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#f9fafb}
+.response-section h3{margin-bottom:8px;color:#fde68a;font-size:1.05rem}
+#responseText{line-height:1.6;color:#fff;white-space:pre-wrap;word-wrap:break-word}
+.image-gallery{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.image-gallery img{max-width:100%;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,.3)}
+#audioContainer{margin-top:10px;min-height:42px}
+
+/* การ์ดอาจารย์ (เพิ่มแบบไม่รบกวน ถ้าไม่มีข้อมูลจะซ่อน) */
+.prof-card{display:none;align-items:center;gap:12px;margin-top:12px;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:10px}
+.prof-card img{width:64px;height:64px;border-radius:10px;object-fit:cover;display:none}
+.prof-meta{min-width:0}
+.prof-name{font-weight:700}
+.prof-title{font-size:.9rem;opacity:.9}
+
+/* แท็บล่าง */
+.tabbar{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;gap:8px;justify-content:space-evenly;align-items:center;background:rgba(17,24,39,.35);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,.25);padding:8px 10px}
+.tabbar a,.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;border:none;border-radius:12px;padding:8px 6px;cursor:pointer;background:transparent;color:#f9fafb;opacity:.9;font-size:.8rem;font-weight:700;transition:transform .1s ease, background .2s ease, opacity .2s ease;text-decoration:none}
+.tabbar .active{background:linear-gradient(135deg,rgba(147,51,234,.9),rgba(236,72,153,.9));opacity:1}
+
+@media (max-width:380px){
+  .content{padding-bottom:100px}
+  :root{ --panel-h:300px; }
+}
+</style>
+</head>
+
+<body>
+<div class="glow"></div><div class="glow"></div>
+<div class="fireflies" aria-hidden="true"></div>
+
+<div class="container">
+  <div class="header">
+    <h1>AI เปิดอาชีพการอาชีพปราจีนบุรี</h1>
+    <p>กดรูปการ์ตูนเพื่อเริ่มพูด — หรือไปหน้า “ข้อความ”</p>
+  </div>
+
+  <div class="content">
+    <div class="status">
+      <p><span id="statusIndicator"></span><span id="statusText">ยังไม่เริ่ม — กดปุ่มเพื่อเริ่ม</span></p>
+      <div id="debug" class="debug"></div>
+    </div>
+
+    <!-- โหมดเสียง: ปุ่มลอย ไม่มีกรอบครอบ -->
+    <div id="voiceBox" class="voice-shell">
+      <div class="button-container" id="voiceControls">
+        <img id="recordButton" src="https://img2.pic.in.th/pic/imge235379524201c94e1.png" alt="แตะเพื่อเริ่ม" role="button" tabindex="0" draggable="false"
+             onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><rect width=%22200%22 height=%22200%22 fill=%22%23ddd%22/><text x=%2230%22 y=%22105%22 font-size=%2212%22 fill=%22%23666%22>imge2.png not found</text></svg>';"/>
+      </div>
+      <p class="help" id="voiceHelp">ครั้งแรกจะปลดล็อกเสียงให้เบราว์เซอร์ยอมเล่นอัตโนมัติ</p>
+
+      <div class="voice-scroll">
+        <div id="transcriptBox" class="transcript-box">
+          <h3><i class="fa-regular fa-comment-dots"></i> คุณพูดว่า</h3>
+          <div class="t-line"><span id="userTranscript">-</span></div>
+        </div>
+
+        <div class="response-section" id="voicePanel">
+          <h3>คำตอบจาก AI</h3>
+          <div id="responseText"></div>
+          <div class="image-gallery" id="imageGallery"></div>
+          <div id="audioContainer"></div>
+
+          <!-- การ์ดอาจารย์ (เพิ่มเพื่อกัน error setProfessorUI) -->
+          <div id="prof-card" class="prof-card" aria-live="polite">
+            <img id="prof-img" alt="รูปอาจารย์"/>
+            <div class="prof-meta">
+              <div id="prof-name" class="prof-name"></div>
+              <div id="prof-title" class="prof-title"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- แท็บล่าง: “เสียง” = หน้านี้, “ข้อความ” = Chat.html -->
+  <div class="tabbar" role="tablist" aria-label="สลับโหมดสนทนา">
+    <button class="active" aria-selected="true" title="แชทด้วยเสียง">
+      <i class="fa-solid fa-microphone"></i><span>เสียง</span>
+    </button>
+    <a href="http://10.20.1.20:5055" aria-selected="false" title="แชทด้วยข้อความ">
+      <i class="fa-regular fa-keyboard"></i><span>ข้อความ</span>
+    </a>
+  </div>
+</div>
+
+<script>
+/* ---------- เติมหิ่งห้อยให้เห็นจริง (ตกแต่ง ไม่ยุ่งระบบ) ---------- */
+(function spawnFireflies(){
+  const wrap=document.querySelector('.fireflies'); if(!wrap) return;
+  const N=18;
+  for(let i=0;i<N;i++){
+    const f=document.createElement('div');
+    f.className='firefly';
+    f.style.setProperty('--size', (5+Math.random()*6)+'px');
+    f.style.setProperty('--alpha', (0.6+Math.random()*0.5).toFixed(2));
+    f.style.setProperty('--dur', (10+Math.random()*8).toFixed(1)+'s');
+    f.style.setProperty('--dx1', (Math.random()*80-40)+'px');
+    f.style.setProperty('--dy1', (Math.random()*80-40)+'px');
+    f.style.setProperty('--dx2', (Math.random()*100-50)+'px');
+    f.style.setProperty('--dy2', (Math.random()*100-50)+'px');
+    f.style.setProperty('--dx3', (Math.random()*120-60)+'px');
+    f.style.setProperty('--dy3', (Math.random()*120-60)+'px');
+    f.style.left = (Math.random()*100)+'%';
+    f.style.top  = (Math.random()*100)+'%';
+    wrap.appendChild(f);
+  }
+})();
+
+/* ---------- ฟังก์ชันแสดงข้อมูลอาจารย์ (null-safe + auto-hide) ---------- */
+async function showProfessorByName(name){
+  if (!name) return hideProfessor();
+  try{
+    const res = await fetch(`/professor?name=${encodeURIComponent(name)}`);
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    setProfessorUI({
+      name: name,
+      title: data?.title || '',
+      image_url: data?.image_url || ''
+    });
+  }catch(err){
+    console.warn('fetch /professor error:', err);
+    hideProfessor();
+  }
+}
+function setProfessorUI({name='', title='', image_url=''} = {}){
+  const card = document.getElementById('prof-card');
+  const nameEl = document.getElementById('prof-name');
+  const titleEl = document.getElementById('prof-title');
+  const imgEl = document.getElementById('prof-img');
+
+  if (!card || !nameEl || !titleEl || !imgEl) return; // ปลอดภัยไว้ก่อน
+
+  const hasAny = (name || title || image_url);
+  card.style.display = hasAny ? 'flex' : 'none';
+
+  nameEl.textContent = name || '';
+  titleEl.textContent = title || '';
+
+  if (image_url){
+    imgEl.src = image_url;
+    imgEl.style.display = 'block';
+  }else{
+    imgEl.removeAttribute('src');
+    imgEl.style.display = 'none';
+  }
+}
+function hideProfessor(){ setProfessorUI({name:'', title:'', image_url:''}); }
+
+/* พื้นหลัง fallback */
+(function ensureBg(){
+  const testImg = new Image();
+  testImg.onerror = ()=>{ document.body.style.backgroundImage =
+    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"; };
+  testImg.src = "https://media1.tenor.com/m/eYUixYNML7cAAAAd/barish.gif?" + Date.now();
+})();
+
+/* ===== Audio Unlock (autoplay policy) ===== */
+let audioUnlocked = false;
+function unlockAudioOnce(){
+  if (audioUnlocked) return Promise.resolve();
+  return new Promise((resolve)=>{
+    try{
+      const a = document.createElement('audio');
+      a.setAttribute('playsinline',''); a.muted = true; a.preload='auto';
+      a.src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAAAAAAP///w==";
+      a.onplay=()=>{ audioUnlocked=true; resolve(); };
+      a.play().catch(()=>resolve());
+      setTimeout(()=>resolve(),300);
+    }catch{ resolve(); }
+  });
+}
+
+/* ===== Web Speech ===== */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SpeechRecognition) { alert("ต้องใช้ Chrome/Edge/Safari รุ่นใหม่"); }
+else {
+  const recognition = new SpeechRecognition();
+  recognition.lang='th-TH';
+  recognition.continuous=true;
+  recognition.interimResults=true;
+
+  const $ = (id)=>document.getElementById(id);
+  const recordButton=$('recordButton'), statusIndicator=$('statusIndicator'),
+        statusText=$('statusText'), responseText=$('responseText'),
+        userTranscript=$('userTranscript'), audioContainer=$('audioContainer'), debugEl=$('debug');
+
+  // ซ่อนเครื่องเล่นเสียง (เราเล่นลับหลัง)
+  try{ if (audioContainer) audioContainer.style.display='none'; }catch{}
+
+  let started=false, mode='idle';
+  let hiddenAudio=null, activeObjectUrl=null;
+  let fetchCtrl=null, lastReqId=0;
+  let lastUserUtterance='', lastHeardAt=0;
+  let speakToken=0, pauseTimer=null;
+
+  /* ===== กรองสัญลักษณ์/ลิงก์ เพื่อ “ห้ามอ่าน” ===== */
+  const BLOCK_CHARS = /[\*•●○◎◇◆■□▪▫★☆※§™©®¤¢£¥€₹|<>^~_=+#@/\\]+/g;
+  const URLS = /https?:\/\/\S+/gi;
+  const UNICODE_SYMBOLS = /\p{S}/gu;
+  function stripSymbols(s){
+    if (!s) return '';
+    return s.replace(URLS,'')
+            .replace(UNICODE_SYMBOLS,'')
+            .replace(BLOCK_CHARS,'')
+            .replace(/[•◆◇■□▪▫★☆]+/g,'')
+            .replace(/\s{2,}/g,' ')
+            .trim();
+  }
+  const sanitizeForSpeak = (s)=>stripSymbols(s);
+
+  /* ===== Utilities ===== */
+  function setStatus(next,label){
+    mode=next;
+    statusIndicator.className='';
+    statusIndicator.classList.add(next); // listening / speaking / processing / pausing
+    if (label) statusText.textContent=label;
+    recordButton.classList.toggle('active', next==='listening');
+  }
+
+  function ensureHiddenAudio(){
+    if (hiddenAudio) return hiddenAudio;
+    hiddenAudio = new Audio();
+    hiddenAudio.preload = 'auto';
+    hiddenAudio.autoplay = true;
+    hiddenAudio.controls = false;
+    hiddenAudio.setAttribute('playsinline','');
+    hiddenAudio.crossOrigin='anonymous';
+    return hiddenAudio;
+  }
+
+  function extToMime(url){
+    const u = url.split('?')[0].split('#')[0].toLowerCase();
+    if (u.endsWith('.mp3')) return 'audio/mpeg';
+    if (u.endsWith('.wav')) return 'audio/wav';
+    if (u.endsWith('.ogg')) return 'audio/ogg';
+    if (u.endsWith('.webm')) return 'audio/webm';
+    return '';
+  }
+  function includesStopWord(t){ return /(หยุด|พอ|พอก่อน|stop|สต็อป)/i.test(t||''); }
+  function abortPending(){ if (fetchCtrl){ try{ fetchCtrl.abort(); }catch{} } fetchCtrl=null; }
+  function stopRecognition(){ try{ recognition.stop(); }catch{} }
+  function startRecognition(){ try{ recognition.start(); }catch{} }
+
+  function pauseThenListen(labelAfter='กำลังฟัง…'){
+    if (pauseTimer){ clearTimeout(pauseTimer); pauseTimer=null; }
+    stopRecognition();
+    setStatus('pausing','หยุดชั่วคราว 1 วินาที…');
+    pauseTimer = setTimeout(()=>{ startRecognition(); setStatus('listening', labelAfter); }, 1000);
+  }
+
+  function stopSpeakingForASecond(labelAfter){
+    speakToken++;
+    if (hiddenAudio){
+      try{ hiddenAudio.pause(); }catch{}
+      try{ hiddenAudio.currentTime = 0; }catch{}
+      try{ hiddenAudio.removeAttribute('src'); hiddenAudio.load(); }catch{}
+    }
+    if (activeObjectUrl){ URL.revokeObjectURL(activeObjectUrl); activeObjectUrl=null; }
+    abortPending();
+    pauseThenListen(labelAfter || 'หยุดแล้ว จะฟังต่อ…');
+  }
+
+  /* ===== ความเร็วเสียง (ปรับได้ด้วย Shift+Up/Down) ===== */
+  let TTS_RATE = 1.2;
+  function applyRate(el){
+    try{
+      el.playbackRate = TTS_RATE;
+      el.defaultPlaybackRate = TTS_RATE;
+      statusText.textContent = `ความเร็วเสียง ${TTS_RATE.toFixed(2)}x`;
+    }catch{}
+  }
+  window.addEventListener('keydown',(e)=>{
+    if (!e.shiftKey) return;
+    if (e.key === 'ArrowUp'){ TTS_RATE = Math.min(2.0, +(TTS_RATE+0.05).toFixed(2)); if (hiddenAudio) applyRate(hiddenAudio); }
+    if (e.key === 'ArrowDown'){ TTS_RATE = Math.max(0.7, +(TTS_RATE-0.05).toFixed(2)); if (hiddenAudio) applyRate(hiddenAudio); }
+    if (e.key === '0'){ TTS_RATE = 1.2; if (hiddenAudio) applyRate(hiddenAudio); }
+  });
+  window.setTTSSpeed = (x)=>{ if (typeof x==='number'){ TTS_RATE = Math.min(2, Math.max(0.7, x)); if (hiddenAudio) applyRate(hiddenAudio); } };
+
+  /* ===== เล่นเสียง TTS แบบลับหลัง ===== */
+  async function playTTS(url){
+    await unlockAudioOnce();
+    const a = ensureHiddenAudio();
+    applyRate(a);
+    const myToken = ++speakToken;
+
+    a.onended = ()=>{ if (myToken===speakToken) pauseThenListen('กำลังฟัง…'); };
+    a.onerror = (e)=>{ if (myToken===speakToken){ console.warn('Audio error', e); if (debugEl) debugEl.textContent='Audio error'; pauseThenListen('พูดต่อได้เลย'); } };
+
+    if (activeObjectUrl){ URL.revokeObjectURL(activeObjectUrl); activeObjectUrl=null; }
+    try{ a.pause(); a.removeAttribute('src'); a.load(); }catch{}
+
+    setStatus('speaking','กำลังพูด… (พูดว่า “หยุด” เพื่อพัก 1 วิ)');
+
+    try{
+      if (url.startsWith('data:') || url.startsWith('blob:')){
+        a.src = url; a.load(); applyRate(a); await a.play(); return;
+      }
+      if (/^https?:\/\//i.test(url)){
+        const resp = await fetch(url, {mode:'cors'});
+        if (!resp.ok) throw new Error('HTTP '+resp.status);
+        const mime = resp.headers.get('Content-Type') || extToMime(url) || 'audio/mpeg';
+        const blob = await resp.blob();
+        const ok = ['audio/mpeg','audio/mp3','audio/wav','audio/x-wav','audio/ogg','audio/webm'];
+        const useType = ok.includes(mime) ? mime : (extToMime(url) || 'audio/mpeg');
+        const fixedBlob = (blob.type && ok.includes(blob.type)) ? blob : new Blob([blob], {type: useType});
+        activeObjectUrl = URL.createObjectURL(fixedBlob);
+        a.src = activeObjectUrl;
+        a.load(); applyRate(a);
+        await a.play().catch(()=>{});
+        return;
+      }
+      a.src = url; a.load(); applyRate(a); await a.play();
+    }catch(err){
+      if (myToken!==speakToken) return;
+      console.error('playTTS failed:', err);
+      if (debugEl) debugEl.textContent = 'เล่นเสียงไม่สำเร็จ: '+(err?.message||err);
+      pauseThenListen('พูดต่อได้เลย');
+    }
+  }
+
+  /* ===== คุยกับเซิร์ฟเวอร์ ===== */
+  async function askServer(text){
+    setStatus('processing','กำลังประมวลผล…');
+    abortPending();
+    fetchCtrl = new AbortController();
+    const reqId = ++lastReqId;
+
+    const cleaned = sanitizeForSpeak(text);
+    const res = await fetch('/ask',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        text: cleaned,
+        options:{ strip_symbols:true, symbols_blocklist:['*','•','★','☆','|','_','~','#','@','/','\\'] }
+      }),
+      signal:fetchCtrl.signal
+    });
+    const data = await res.json();
+    if (reqId !== lastReqId) return null;
+    return data;
+  }
+
+  /* ===== ตัวจัดการเสียงพูดของผู้ใช้ ===== */
+  recognition.onresult = async (e)=>{
+    const r = e.results[e.results.length-1];
+    const raw = (r && r[0] && r[0].transcript || '').trim();
+    if (!raw) return;
+
+    const transcript = sanitizeForSpeak(raw);
+    const now = Date.now();
+    if (transcript===lastUserUtterance && (now - lastHeardAt) < 250) return;
+    lastUserUtterance = transcript; lastHeardAt = now;
+
+    if (mode==='speaking' || mode==='processing'){
+      if (includesStopWord(transcript)){ stopSpeakingForASecond('หยุด 1 วิ… แล้วจะฟังต่อ'); }
+      return;
+    }
+
+    if (userTranscript) userTranscript.textContent = transcript;
+
+    if (r.isFinal){
+      if (includesStopWord(transcript)){ stopRecognition(); pauseThenListen('หยุด 1 วิ… แล้วจะฟังต่อ'); return; }
+      try{
+        const data = await askServer(transcript);
+        if (!data) return;
+
+        // โชว์ข้อความจาก AI
+        const clean = sanitizeForSpeak(data.text_response || data.message || '');
+        if (responseText) responseText.textContent = clean || '—';
+
+        // --- ดึงรูปอาจารย์แบบยืดหยุ่น ---
+        if (data.image_url){
+          setProfessorUI({
+            name: sanitizeForSpeak(data.professor_name || ''),
+            title: sanitizeForSpeak(data.professor_title || ''),
+            image_url: data.image_url
+          });
+        } else if (data.professor_name){
+          await showProfessorByName(sanitizeForSpeak(data.professor_name));
+        } else {
+          hideProfessor();
+        }
+
+        // เล่นเสียง (ซ่อนเครื่องเล่น)
+        if (data.audio_url){ await playTTS(data.audio_url); }
+        else { setStatus('listening','กำลังฟัง…'); }
+      }catch(err){
+        if (err.name!=='AbortError'){
+          console.error(err);
+          if (responseText) responseText.textContent = 'เกิดข้อผิดพลาด ลองพูดอีกครั้งได้เลย';
+          hideProfessor();
+          pauseThenListen('ลองพูดอีกครั้งได้เลย');
+        }
+      }
+    }
+  };
+
+  recognition.onerror = ()=>{ pauseThenListen('กำลังฟัง…'); };
+  recognition.onend = ()=>{ if (mode==='listening'){ startRecognition(); } };
+
+  /* ===== Start ===== */
+  async function startOnce(){
+    if (started) return;
+    started = true;
+    statusText.textContent='กำลังเตรียมระบบเสียง…';
+    await unlockAudioOnce();
+    startRecognition();
+    setStatus('listening','กำลังฟัง…');
+  }
+
+  recordButton.addEventListener('click', startOnce);
+  recordButton.addEventListener('keydown', (e)=>{ if (e.code==='Space'||e.code==='Enter'){ e.preventDefault(); startOnce(); } });
+
+  // คีย์ลัด: ESC = หยุด 1 วิ แล้วฟังต่อ
+  window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ stopSpeakingForASecond(); } });
+}
+</script>
+
+</body>
+</html>
